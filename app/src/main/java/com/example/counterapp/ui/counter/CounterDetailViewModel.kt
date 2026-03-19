@@ -32,6 +32,9 @@ class CounterDetailViewModel @Inject constructor(
     private val _liveElapsedMs = MutableStateFlow(0L)
     val liveElapsedMs: StateFlow<Long> = _liveElapsedMs.asStateFlow()
 
+    private val _isPaused = MutableStateFlow(false)
+    val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
+
     private val _isEditDialogOpen = MutableStateFlow(false)
     val isEditDialogOpen: StateFlow<Boolean> = _isEditDialogOpen.asStateFlow()
 
@@ -59,6 +62,7 @@ class CounterDetailViewModel @Inject constructor(
     }
 
     fun startSession() {
+        if (_isPaused.value) return
         viewModelScope.launch {
             repository.startSession(counterId)
             sessionStartMs = SystemClock.elapsedRealtime()
@@ -71,6 +75,16 @@ class CounterDetailViewModel @Inject constructor(
         viewModelScope.launch {
             repository.flushSession(counterId)
         }
+    }
+
+    fun pauseTimer() {
+        flushSession()
+        _isPaused.value = true
+    }
+
+    fun resumeTimer() {
+        _isPaused.value = false
+        startSession()
     }
 
     fun increment(amount: Int) {

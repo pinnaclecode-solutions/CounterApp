@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +54,7 @@ fun CounterDetailScreen(
 ) {
     val counter by viewModel.counter.collectAsState()
     val liveElapsedMs by viewModel.liveElapsedMs.collectAsState()
+    val isPaused by viewModel.isPaused.collectAsState()
     val isEditDialogOpen by viewModel.isEditDialogOpen.collectAsState()
     val incrementTrigger by viewModel.incrementTrigger.collectAsState()
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -146,10 +148,26 @@ fun CounterDetailScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Edit button
-            Button(onClick = { viewModel.openEditDialog() }) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Text("  Edit Count & Time", modifier = Modifier.padding(start = 4.dp))
+            // Pause and Edit buttons
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Button(
+                    onClick = {
+                        if (isPaused) viewModel.resumeTimer() else viewModel.pauseTimer()
+                    },
+                    colors = if (isPaused) ButtonDefaults.buttonColors()
+                    else ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text(if (isPaused) "Resume" else "Pause")
+                }
+
+                Button(onClick = { viewModel.openEditDialog() }) {
+                    Icon(Icons.Default.Edit, contentDescription = null)
+                    Text("Edit", modifier = Modifier.padding(start = 4.dp))
+                }
             }
         }
     }
