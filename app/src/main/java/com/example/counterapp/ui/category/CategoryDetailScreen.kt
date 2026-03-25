@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -184,7 +185,7 @@ fun CategoryDetailScreen(
                     ) {
                         Row(
                             modifier = Modifier
-                                .padding(16.dp)
+                                .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 4.dp)
                                 .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -209,6 +210,13 @@ fun CategoryDetailScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            IconButton(onClick = { counterToDelete = counter }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete Counter",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
@@ -218,7 +226,11 @@ fun CategoryDetailScreen(
 
     // Add Counter Dialog
     if (showAddDialog) {
-        var name by remember { mutableStateOf("") }
+        val defaultName = remember {
+            java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+                .format(java.util.Date())
+        }
+        var name by remember { mutableStateOf(defaultName) }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showAddDialog = false },
             title = { Text("Add Counter") },
@@ -234,7 +246,11 @@ fun CategoryDetailScreen(
                 TextButton(
                     onClick = {
                         if (name.isNotBlank()) {
-                            viewModel.addCounter(name)
+                            viewModel.addCounter(name) { id ->
+                                navController.navigate(
+                                    com.example.counterapp.navigation.Routes.CounterDetail.createRoute(id)
+                                )
+                            }
                             showAddDialog = false
                         }
                     },

@@ -7,6 +7,8 @@ import com.example.counterapp.data.local.CategoryStats
 import com.example.counterapp.data.local.CategoryWithStats
 import com.example.counterapp.data.local.Counter
 import com.example.counterapp.data.local.CounterDao
+import com.example.counterapp.data.local.CounterSessionDao
+import com.example.counterapp.data.local.CounterSessionEntry
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,7 +16,8 @@ import javax.inject.Singleton
 @Singleton
 class CounterAppRepository @Inject constructor(
     private val categoryDao: CategoryDao,
-    private val counterDao: CounterDao
+    private val counterDao: CounterDao,
+    private val counterSessionDao: CounterSessionDao
 ) {
     fun getCategoriesWithStats(): Flow<List<CategoryWithStats>> =
         categoryDao.getCategoriesWithStats()
@@ -33,6 +36,31 @@ class CounterAppRepository @Inject constructor(
 
     fun getCategoryStats(categoryId: Long): Flow<CategoryStats> =
         counterDao.getCategoryStats(categoryId)
+
+    fun getCounterSessions(counterId: Long): Flow<List<CounterSessionEntry>> =
+        counterSessionDao.getSessionsForCounter(counterId)
+
+    suspend fun logSession(
+        counterId: Long,
+        countBefore: Int,
+        countAfter: Int,
+        durationMs: Long,
+        startedAt: Long,
+        endedAt: Long,
+        isManualEdit: Boolean = false
+    ) {
+        counterSessionDao.insert(
+            CounterSessionEntry(
+                counterId = counterId,
+                countBefore = countBefore,
+                countAfter = countAfter,
+                durationMs = durationMs,
+                startedAt = startedAt,
+                endedAt = endedAt,
+                isManualEdit = isManualEdit
+            )
+        )
+    }
 
     suspend fun addCategory(name: String): Long {
         val category = Category(name = name.trim())

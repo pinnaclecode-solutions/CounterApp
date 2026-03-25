@@ -20,10 +20,11 @@ class HomeViewModel @Inject constructor(
     val categories: StateFlow<List<CategoryWithStats>> = repository.getCategoriesWithStats()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addCategory(name: String) {
+    fun addCategory(name: String, onCreated: (Long) -> Unit = {}) {
         viewModelScope.launch {
             try {
-                repository.addCategory(name)
+                val id = repository.addCategory(name)
+                onCreated(id)
             } catch (_: Exception) {
                 // Duplicate name - silently ignore, UI should validate
             }

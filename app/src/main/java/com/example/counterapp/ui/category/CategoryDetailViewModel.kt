@@ -40,9 +40,10 @@ class CategoryDetailViewModel @Inject constructor(
         }
     }
 
-    fun addCounter(name: String) {
+    fun addCounter(name: String, onCreated: (Long) -> Unit = {}) {
         viewModelScope.launch {
-            repository.addCounter(categoryId, name)
+            val id = repository.addCounter(categoryId, name)
+            onCreated(id)
         }
     }
 

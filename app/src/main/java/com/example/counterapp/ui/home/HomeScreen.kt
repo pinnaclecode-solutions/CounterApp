@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,19 +124,33 @@ fun HomeScreen(
                             ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = category.name,
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                StatText("Count", category.totalCount.toString())
-                                StatText("Time", TimeFormatter.formatDuration(category.totalTimeMs))
-                                StatText("Counters", category.counterCount.toString())
+                        Row(
+                            modifier = Modifier
+                                .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 4.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = category.name,
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    StatText("Count", category.totalCount.toString())
+                                    StatText("Time", TimeFormatter.formatDuration(category.totalTimeMs))
+                                    StatText("Counters", category.counterCount.toString())
+                                }
+                            }
+                            IconButton(onClick = { categoryToDelete = category }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete Category",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }
@@ -162,7 +177,11 @@ fun HomeScreen(
                 TextButton(
                     onClick = {
                         if (name.isNotBlank()) {
-                            viewModel.addCategory(name)
+                            viewModel.addCategory(name) { id ->
+                                navController.navigate(
+                                    com.example.counterapp.navigation.Routes.CategoryDetail.createRoute(id)
+                                )
+                            }
                             showAddDialog = false
                         }
                     },

@@ -11,12 +11,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,8 +50,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import com.example.counterapp.data.local.CounterSessionEntry
+import com.example.counterapp.ui.components.ConfirmDeleteDialog
 import com.example.counterapp.util.TimeFormatter
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +69,9 @@ fun CounterDetailScreen(
     val isPaused by viewModel.isPaused.collectAsState()
     val isEditDialogOpen by viewModel.isEditDialogOpen.collectAsState()
     val incrementTrigger by viewModel.incrementTrigger.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Scale animation
     val scale = remember { Animatable(1f) }
@@ -68,13 +82,12 @@ fun CounterDetailScreen(
         }
     }
 
-    // Lifecycle management — start/flush session
+    // Lifecycle management — pause and log session when leaving screen
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> viewModel.startSession()
-                Lifecycle.Event.ON_STOP -> viewModel.flushSession()
+                Lifecycle.Event.ON_STOP -> viewModel.onScreenExit()
                 else -> {}
             }
         }
@@ -98,75 +111,112 @@ fun CounterDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Counter")
+                    }
                     IconButton(onClick = { showRenameDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Counter")
+                        Icon(Icons.Default.Edit, contentDescription = "Rename Counter")
                     }
                 }
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Large count display
-            Text(
-                text = NumberFormat.getInstance().format(counter?.count ?: 0),
-                style = MaterialTheme.typography.displayLarge,
-                modifier = Modifier.graphicsLayer {
-                    scaleX = scale.value
-                    scaleY = scale.value
-                },
-                textAlign = TextAlign.Center
-            )
+            // Counter controls
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(32.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+                    // Large count display
+                    Text(
+                        text = NumberFormat.getInstance().format(counter?.count ?: 0),
+                        style = MaterialTheme.typography.displayLarge,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = scale.value
+                            scaleY = scale.value
+                        },
+                        textAlign = TextAlign.Center
+                    )
 
-            // Live timer display
-            Text(
-                text = TimeFormatter.formatDuration(liveElapsedMs),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(48.dp))
+                    // Live timer display
+                    Text(
+                        text = TimeFormatter.formatDuration(liveElapsedMs),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-            // Increment buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                IncrementButton("+1") { viewModel.increment(1) }
-                IncrementButton("+5") { viewModel.increment(5) }
-                IncrementButton("+10") { viewModel.increment(10) }
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    // Increment buttons
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        IncrementButton("+1") { viewModel.increment(1) }
+                        IncrementButton("+5") { viewModel.increment(5) }
+                        IncrementButton("+10") { viewModel.increment(10) }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Pause and Edit buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                if (isPaused) viewModel.resumeTimer() else viewModel.pauseTimer()
+                            },
+                            colors = if (isPaused) ButtonDefaults.buttonColors()
+                            else ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text(if (isPaused) "Resume" else "Pause")
+                        }
+
+                        Button(onClick = { viewModel.openEditDialog() }) {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                            Text("Edit", modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Pause and Edit buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Button(
-                    onClick = {
-                        if (isPaused) viewModel.resumeTimer() else viewModel.pauseTimer()
-                    },
-                    colors = if (isPaused) ButtonDefaults.buttonColors()
-                    else ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary
+            // History header
+            if (sessions.isNotEmpty()) {
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    Text(
+                        text = "History",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     )
-                ) {
-                    Text(if (isPaused) "Resume" else "Pause")
                 }
 
-                Button(onClick = { viewModel.openEditDialog() }) {
-                    Icon(Icons.Default.Edit, contentDescription = null)
-                    Text("Edit", modifier = Modifier.padding(start = 4.dp))
+                items(sessions, key = { it.id }) { session ->
+                    SessionHistoryItem(session)
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -182,6 +232,19 @@ fun CounterDetailScreen(
                 onDismiss = { viewModel.closeEditDialog() }
             )
         }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        ConfirmDeleteDialog(
+            title = "Delete Counter",
+            message = "Delete \"${counter?.name}\"?",
+            onConfirm = {
+                viewModel.deleteCounter { navController.popBackStack() }
+                showDeleteDialog = false
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
     }
 
     // Rename dialog
@@ -226,5 +289,38 @@ private fun IncrementButton(label: String, onClick: () -> Unit) {
             text = label,
             style = MaterialTheme.typography.titleLarge
         )
+    }
+}
+
+@Composable
+private fun SessionHistoryItem(session: CounterSessionEntry) {
+    val timeFormat = remember { SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()) }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            val countText = "Count: ${session.countBefore} \u2192 ${session.countAfter}"
+            val durationText = if (session.durationMs > 0) {
+                "  (in ${TimeFormatter.formatDuration(session.durationMs)})"
+            } else {
+                ""
+            }
+            Text(
+                text = countText + durationText,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${timeFormat.format(Date(session.startedAt))} \u2013 ${timeFormat.format(Date(session.endedAt))}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

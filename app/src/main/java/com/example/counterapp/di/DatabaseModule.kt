@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.counterapp.data.local.CategoryDao
 import com.example.counterapp.data.local.CounterAppDatabase
 import com.example.counterapp.data.local.CounterDao
+import com.example.counterapp.data.local.CounterSessionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -41,6 +42,7 @@ object DatabaseModule {
                     )
                 }
             })
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 
@@ -49,4 +51,7 @@ object DatabaseModule {
 
     @Provides
     fun provideCounterDao(db: CounterAppDatabase): CounterDao = db.counterDao()
+
+    @Provides
+    fun provideCounterSessionDao(db: CounterAppDatabase): CounterSessionDao = db.counterSessionDao()
 }
